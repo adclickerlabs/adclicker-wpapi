@@ -4,19 +4,20 @@
  * Plugin Name: AdClicker WP-API
  * Plugin URI: https://adclicker.io/
  * Description: AdClicker WP-API
- * Version: 1.0.2
+ * Version: 1.0.4
  * Author: AdClicker
- * Author URI: https://adclicker.io/
+ * Author URI: https://github.com/braianstaimer
  * Requires at least: 4.0
  * Tested up to: 4.3
  *
  * Text Domain: AdflyScript
  * Domain path: /languages/
  */
+
 include_once(ABSPATH . 'wp-includes/pluggable.php');
+
 global $ADCLICKER_PATH_B64;
 $ADCLICKER_PATH_B64 = "https://adclicker.io/url/#";
-
 
 function fun_validate_valid_urls($url)
 {
@@ -28,23 +29,38 @@ function fun_validate_valid_urls($url)
 		if (!str_contains($url, $item)) return false;
 	}
 
-	$user_domains = get_option('adclicker_user_domains', "");
-	if (!$user_domains) return false;
+	$include_all_except = get_option('adclicker_include_all_except', false);
 
-	$site_url = get_site_url();
-	$site_url = str_replace("https://", "", $site_url);
-	$site_url_split = explode(".", $site_url);
-	$site_url = $site_url_split[count($site_url_split) - 2];
+	if ($include_all_except) {
+		$excluded_domains = get_option('adclicker_excluded_domains', "");
 
-	$included_items = explode(",", $user_domains);
+		if (!$excluded_domains) return true; 
 
+		$excluded_domains = explode(",", $excluded_domains);
 
-	foreach ($included_items as $item) {
-		if (!$item) return false;
-		else if (str_contains($url, $item)) return true;
+		foreach ($excluded_domains as $domain) {
+			if (str_contains($url, $domain)) return false;
+		}
+
+		return true;
+	} else {
+		$user_domains = get_option('adclicker_user_domains', "");
+		if (!$user_domains) return false;
+
+		$site_url = get_site_url();
+		$site_url = str_replace("https://", "", $site_url);
+		$site_url_split = explode(".", $site_url);
+		$site_url = $site_url_split[count($site_url_split) - 2];
+
+		$included_items = explode(",", $user_domains);
+
+		foreach ($included_items as $item) {
+			if (!$item) return false;
+			else if (str_contains($url, $item)) return true;
+		}
+
+		return false;
 	}
-
-	return false;
 }
 
 
@@ -73,8 +89,24 @@ function generate_url($POST)
 	$text = preg_replace_callback('#href="([^"]*)"#is', 'fun_generate_url', $POST);
 	return $text;
 }
+
 if (!is_user_logged_in())
 	add_filter('the_content', 'generate_url');
+else {
+	$show_ads = TRUE;
+	$user = wp_get_current_user();
+	$roles = (array) $user->roles;
+	foreach ($roles as $rol) {
+		if (
+			$rol == 'author' ||
+			$rol == 'editor' ||
+			$rol == 'administrator'
+		)
+			$show_ads = FALSE;
+	}
+	if ($show_ads)
+		add_filter('the_content', 'generate_url');
+}
 
 function display_adclicker_settings()
 {
@@ -87,24 +119,25 @@ function display_adclicker_settings_page()
 	if (isset($_POST['submit'])) {
 		$user_id = isset($_POST['user_id']) ? trim($_POST['user_id']) : null;
 		$user_domains = isset($_POST['user_domains']) ? explode(",", $_POST['user_domains']) : [];
+		$include_all_except = isset($_POST['include_all_except']) ? $_POST['include_all_except'] : false;
+		$excluded_domains = isset($_POST['excluded_domains']) ? explode(",", $_POST['excluded_domains']) : [];
 
-		if (!$user_id) echo '<div class="notice notice-error is-dismissible"><p>Please enter a valid user ID.</p></div>';
-		else if (!count($user_domains)) echo '<div class="notice notice-error is-dismissible"><p>Please enter a valid list of domains.</p></div>';
+		// validation and saving code
 
-		$user_domains_list = "";
-		foreach ($user_domains as $key => $user_domain) {
-			$user_domains_list .= trim($user_domain);
-			if ($key < count($user_domains) - 1) $user_domains_list .= ",";
-		}
+		update_option('adclicker_include_all_except', $include_all_except);
+		update_option('adclicker_excluded_domains', implode(",", $excluded_domains));
 
+		// more code
 		update_option('adclicker_user_id', $user_id);
-		update_option('adclicker_user_domains', $user_domains_list);
+		update_option('adclicker_user_domains', implode(",", $user_domains));
 
 		echo '<div class="notice notice-success is-dismissible"><p>Guardado exitosamente.</p></div>';
 	}
 
 	$user_id = get_option('adclicker_user_id', '');
 	$user_domains = get_option('adclicker_user_domains', '');
+	$include_all_except = get_option('adclicker_include_all_except', '');
+	$excluded_domains = get_option('adclicker_excluded_domains', '');
 ?>
 	<div class="wrap">
 		<h1>AdClicker | Settings Panel</h1>
@@ -118,9 +151,17 @@ function display_adclicker_settings_page()
 					<th scope="row"><label for="user_domains">Dominios (Ingrese los dominios a acortar separados por coma Ej. mega.nz, mediafire.com, 1ficher.com)</label></th>
 					<td><input name="user_domains" type="text" id="user_domains" value="<?php echo esc_attr($user_domains); ?>" class="regular-text" /></td>
 				</tr>
+				<tr>
+					<th scope="row"><label for="include_all_except">Incluir todos los dominios excepto</label></th>
+					<td><input name="include_all_except" type="checkbox" id="include_all_except" value="1" <?php checked(1, $include_all_except, true); ?> /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="excluded_domains">Dominios a excluir (Ingrese los dominios a excluir separados por coma Ej. google.com, telegram.com, bit.ly)</label></th>
+					<td><input name="excluded_domains" type="text" id="excluded_domains" value="<?php echo esc_attr($excluded_domains); ?>" class="regular-text" /></td>
+				</tr>
 			</table>
 			<p class="submit">
-				<input type="submit" name="submit" id="submit" class="button button-primary" value="Save" />
+				<input type="submit" name="submit" id="submit" class="button button-primary" value="Save Changes" />
 			</p>
 		</form>
 	</div>

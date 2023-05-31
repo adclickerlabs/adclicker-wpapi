@@ -16,7 +16,7 @@ License: GPLv2 or later
 
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-AdClicker Monetization is an innovative WordPress plugin developed by AdClicker, designed to help website owners monetize their content in an efficient and personalized way.
+AdClicker Monetization is a new WordPress plugin made by AdClicker. It helps website owners make money from their content in a simple and custom way.
 
 == Description ==
 To get started, install and activate the plugin on your WordPress website. Then follow the instructions to set up your AdClicker account. Finally, monitor the performance of your ads and adjust your strategy as needed to maximize your revenue.
@@ -28,7 +28,15 @@ This section describes how to install the plugin and get it working.
 
 2. Activate the plugin through the 'Plugins' menu in WordPress
 
+3.Go to AdClicker Settings and complete the settings
+
 == Changelog ==
-= v1.0.0 =
+= v1.0.3 =
+Initial commit
+
+== Changelog ==
+= v1.0.4 =
+- Add include all domains option
+- Fixes about roles
 
 * Initial release
